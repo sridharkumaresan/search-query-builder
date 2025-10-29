@@ -1,4 +1,5 @@
-import { SearchQueryBuilder } from "../src/index";
+import { hy } from "../src/index";
+
 
 const stopWords = new Set([
   "how",
@@ -46,17 +47,18 @@ const utterances = [
   "ira",
 ];
 
-const builder = new SearchQueryBuilder({
+// Create builder instance
+const builder = new hy.SearchQueryBuilder({
   stopWords,
-  utterances, // for prod prefer pretokenized or compact artifact path
-  wrap: (q) => `/${q}/`,
+  utterances,
   includeContainedMatches: true,
-  useBackslash: true,
-  useUtterances: false,
+  fuzzyThreshold: 0.3, // adjust for fuzziness
 });
+
 
 const inputs = [
   "how do i pre clear a trade?",
+  'how do i "pre clear trade" today',
   'how do i "pre clear trade" today, account today preclear today preclr?',
   // `please "market on close" order vs market-on-close`,
   // `rbac and abac for row level security`,

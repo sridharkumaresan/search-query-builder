@@ -1,7 +1,7 @@
 {
   "name": "search-query-builder",
   "version": "1.0.0",
-  "description": "Fast token AhoCorasick search query builder with quotes, stop words, and utterance matching.",
+  "description": "Search query builder with quotes, stop words, and utterance matching.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,16 +19,22 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "dev:node": "tsx examples/node-demo.ts",
+    "dev:node-1": "tsx examples/node-demo.ts",
     "gen:data": "tsx scripts/generate-demo-data.ts",
     "bench": "tsx scripts/perf-bench.ts",
     "scenarios": "tsx scripts/scenario-runner.ts",
     "preview:browser": "npx http-server . -p 8080 -c-1 --open examples/browser-demo.html"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.3",
+    "@types/lodash": "^4.17.20",
+    "http-server": "^14.1.1",
     "tsx": "^4.19.0",
-    "http-server": "^14.1.1"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "fuse.js": "^7.1.0",
+    "lodash": "^4.17.21"
+  }
 }

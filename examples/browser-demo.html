@@ -1,801 +1,281 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Search Query Builder — Modern Demo + Perf Timeline</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      :root {
-        --bg: #0b1021;
-        --panel: #0d1326;
-        --line: #1e293b;
-        --fg: #e7eaf3;
-        --muted: #94a3b8;
-        --accent1: #8b5cf6;
-        --accent2: #06b6d4;
-        --good: #22c55e;
-        --warn: #f59e0b;
-        --slate: #1e293b;
-        --slate2: #334155;
-        --blue: #0c4a6e;
-        --blue2: #0369a1;
-        --green: #064e3b;
-        --green2: #065f46;
-        --token: #1e293b;
-        --tokenB: #334155;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        color: var(--fg);
-        background:
-          radial-gradient(1200px 600px at 80% -10%, #111827 0%, #0b1021 60%)
-            fixed,
-          linear-gradient(180deg, #0b1021 0%, #0b1021 100%) fixed;
-        font:
-          14px/1.5 ui-sans-serif,
-          system-ui,
-          -apple-system,
-          "Segoe UI",
-          Roboto,
-          Arial;
-      }
-      header {
-        padding: 36px 16px 8px;
-        text-align: center;
-      }
-      .title {
-        font-size: 28px;
-        font-weight: 800;
-        letter-spacing: 0.2px;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-      }
-      .sub {
-        color: var(--muted);
-        margin-top: 6px;
-        font-size: 13px;
-      }
-      .wrap {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 0 16px 36px;
-        display: grid;
-        gap: 16px;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Query Builder Playground</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <style>
+    :root {
+      --blue: #2563eb;
+      --bg: #f9fafb;
+      --card: #fff;
+      --text: #111827;
+      --border: #e5e7eb;
+      --muted: #6b7280;
+      --token: #e0f2fe;
+      --protected: #fef3c7;
+      --match: #dcfce7;
+    }
 
-      .grid {
-        display: grid;
-        gap: 16px;
-      }
-      .g-2 {
-        grid-template-columns: 1fr 1fr;
-      }
-      @media (max-width: 900px) {
-        .g-2 {
-          grid-template-columns: 1fr;
-        }
-      }
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
 
-      .card {
-        background: rgba(13, 19, 38, 0.6);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 16px;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-      }
-      .row {
-        display: grid;
-        gap: 10px;
-        grid-template-columns: 140px 1fr;
-        align-items: center;
-      }
-      label {
-        color: var(--muted);
-        font-size: 12px;
-      }
-      input[type="text"],
-      textarea {
-        width: 100%;
-        padding: 12px 12px;
-        border-radius: 12px;
-        border: 1px solid #243145;
-        background: #0f172a;
-        color: var(--fg);
-        outline: none;
-      }
-      input::placeholder {
-        color: #64748b;
-      }
-      .controls {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      button {
-        padding: 10px 14px;
-        border-radius: 12px;
-        border: 1px solid #243145;
-        color: #fff;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        cursor: pointer;
-        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
-      }
-      button.secondary {
-        background: #0f172a;
-        border-color: #2b354c;
-      }
-      button:hover {
-        filter: brightness(1.07);
-      }
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 900px;
+      margin-inline: auto;
+    }
 
-      .muted {
-        color: var(--muted);
-        font-size: 12px;
-      }
-      pre {
-        background: #0b1021;
-        color: #e7eaf3;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 12px;
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        max-width: 100%;
-        overflow-x: hidden;
-      }
-      ul {
-        list-style: none;
-        padding-left: 0;
-        margin: 0;
-      }
-      li {
-        border-bottom: 1px dashed var(--line);
-        padding: 8px 0;
-      }
-      #hist pre {
-        max-height: 180px;
-        overflow-y: auto;
-      }
+    h1 {
+      text-align: center;
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 1.5rem;
+    }
 
-      .meter {
-        height: 10px;
-        width: 100%;
-        background: #0f172a;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .bar {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, var(--accent1), var(--accent2));
-        transition: width 0.2s ease;
-      }
-      .kpi {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-      }
-      .kpi .val {
-        font-size: 20px;
-        font-weight: 800;
-      }
-      .kpi .unit {
-        color: var(--muted);
-        font-size: 12px;
-      }
-      .kpi .label {
-        color: var(--muted);
-        font-size: 12px;
-        margin-left: auto;
-      }
-      .tag {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 8px;
-        background: #0f172a;
-        border: 1px solid #22304a;
-        color: #cbd5e1;
-        font-size: 12px;
-      }
-      .inline {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
 
-      .chip {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 10px;
-        margin: 3px;
-        font-size: 12px;
-      }
-      .chip--token {
-        background: var(--token);
-        color: #cbd5e1;
-        border: 1px solid var(--tokenB);
-      }
-      .chip--matched {
-        background: var(--blue);
-        color: #bae6fd;
-        border: 1px solid var(--blue2);
-      }
-      .chip--protected {
-        background: var(--green);
-        color: #bbf7d0;
-        border: 1px solid var(--green2);
-      }
+    input[type='text'] {
+      width: 100%;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+    }
 
-      .chips-wrap {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        max-width: 100%;
-        margin-top: 6px;
-      }
+    .metrics {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
 
-      /* Perf timeline */
-      .stack {
-        height: 12px;
-        width: 100%;
-        background: #0f172a;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        overflow: hidden;
-        display: flex;
-      }
-      .seg {
-        height: 100%;
-      }
-      .seg.tokenize {
-        background: #7dd3fc;
-      } /* light blue */
-      .seg.wrap {
-        background: #a7f3d0;
-      } /* light green */
-      .seg.other {
-        background: #d8b4fe;
-      } /* light purple */
-      .row3 {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 8px;
-        margin-top: 8px;
-      }
-      .mini {
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .mini strong {
-        color: var(--fg);
-      }
-      .spark {
-        height: 32px;
-        display: flex;
-        gap: 3px;
-        align-items: flex-end;
-      }
-      .spark div {
-        width: 6px;
-        background: linear-gradient(180deg, var(--accent1), var(--accent2));
-        opacity: 0.8;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="title">Search Query Builder</div>
-      <div class="sub">
-        Quotes · Stopwords · Token Aho–Corasick · Slash-wrapped phrases · Live
-        Perf
-      </div>
-    </header>
+    .section {
+      margin-top: 1.2rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
 
-    <div class="wrap">
-      <!-- CONFIG -->
-      <div class="card grid g-2">
-        <div class="grid" style="gap: 12px">
-          <div class="row">
-            <label>Input</label>
-            <input
-              id="q"
-              type="text"
-              placeholder='e.g. how do i "pre clear trade" today'
-            />
-          </div>
-          <div class="row">
-            <label>Stop words</label>
-            <input
-              id="stops"
-              type="text"
-              value="how,do,i,a,the,and,or,to,of,in,is,are,for,with,on,at,by,from,what,when,then,also,as,this,that,there"
-            />
-          </div>
-          <div class="row">
-            <label>Utterances (CSV)</label>
-            <textarea id="utter" rows="3">
-pre clear,trade,pre clear trade,insider trading,limit order,annual report,pre-approval,block trade,order book,market-on-close,market on close,rbac,abac,row level security,risk limit breach,approval form,late submission,blackout period</textarea
-            >
-          </div>
-          <div>
-            <div class="inline">
-              <span class="muted">Source:</span>
-              <label class="tag"
-                ><input type="radio" name="src" value="csv" checked /> CSV
-                (left)</label
-              >
-              <label class="tag"
-                ><input type="radio" name="src" value="compact" /> Compact
-                artifact</label
-              >
-              <input
-                id="artifactUrl"
-                type="text"
-                placeholder="../demo-utterances.compact.json"
-                style="flex: 1 1 260px"
-              />
-            </div>
-            <div class="inline" style="margin-top: 8px">
-              <span class="muted">Builder mode:</span>
-              <label class="tag"
-                ><input type="radio" name="mode" value="strings" checked />
-                Strings</label
-              >
-              <label class="tag"
-                ><input type="radio" name="mode" value="pretokenized" />
-                Pretokenized</label
-              >
-              <span class="muted">+ enable profiling</span>
-              <input id="profileToggle" type="checkbox" checked />
-            </div>
-          </div>
-          <div class="controls">
-            <button id="init">Initialize Builder</button>
-            <button id="process" class="secondary">Process Input</button>
-            <span id="status" class="muted">Not initialized</span>
-          </div>
-        </div>
+    .section-header {
+      background: #f3f4f6;
+      padding: 0.8rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--blue);
+    }
 
-        <!-- KPIs + Timeline -->
-        <div class="grid" style="gap: 12px">
-          <div class="kpi">
-            <span class="val" id="kBuild">—</span><span class="unit">ms</span
-            ><span class="label">Build time</span>
-          </div>
-          <div class="meter" style="margin-top: 6px">
-            <div class="bar" id="bBuild"></div>
-          </div>
+    .section-content {
+      padding: 1rem;
+      display: none;
+    }
 
-          <div class="kpi" style="margin-top: 10px">
-            <span class="val" id="kLast">—</span><span class="unit">ms</span
-            ><span class="label">Last query</span>
-            <span class="val" id="kAvg" style="margin-left: 16px">—</span
-            ><span class="unit">ms</span
-            ><span class="label">Avg (last 20)</span>
-          </div>
-          <div class="meter" style="margin-top: 6px">
-            <div class="bar" id="bLast"></div>
-          </div>
-          <div class="meter" style="margin-top: 6px">
-            <div class="bar" id="bAvg"></div>
-          </div>
+    .section.open .section-content {
+      display: block;
+    }
 
-          <!-- Perf timeline -->
-          <div
-            class="card"
-            style="
-              background: transparent;
-              border: 1px dashed var(--line);
-              border-radius: 12px;
-            "
-          >
-            <div class="muted">Perf timeline (last run)</div>
-            <div class="stack" id="timeline">
-              <div class="seg tokenize" style="width: 0%"></div>
-              <div class="seg wrap" style="width: 0%"></div>
-              <div class="seg other" style="width: 100%"></div>
-            </div>
-            <div class="row3">
-              <div class="mini">
-                Tokenize: <strong id="tTok">—</strong> ms (<span id="pTok"
-                  >—</span
-                >%)
-              </div>
-              <div class="mini">
-                Wrap: <strong id="tWrap">—</strong> ms (<span id="pWrap">—</span
-                >%)
-              </div>
-              <div class="mini">
-                Other: <strong id="tOther">—</strong> ms (<span id="pOther"
-                  >—</span
-                >%)
-              </div>
-            </div>
-            <div class="mini" style="margin-top: 10px">
-              Sparkline (last 20 queries)
-            </div>
-            <div class="spark" id="spark"></div>
-            <div class="inline" style="margin-top: 8px">
-              <span class="tag" id="metaPhrases">phrases: —</span>
-              <span class="tag" id="metaDict">dict: —</span>
-              <span class="tag" id="metaTokens">tokens: —</span>
-              <span class="tag" id="metaMatches">matches: —</span>
-              <span class="tag" id="metaClauses">clauses: —</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.3rem;
+      font-size: 0.85rem;
+    }
 
-      <!-- OUTPUT -->
-      <div class="grid g-2">
-        <div class="card">
-          <div class="muted">Processed query</div>
-          <pre id="out">—</pre>
-          <div class="muted" style="margin-top: 8px">
-            History (latest first)
-          </div>
-          <ul id="hist"></ul>
-        </div>
+    .legend span {
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 500;
+    }
 
-        <div class="card">
-          <div class="muted">Quotes balanced: <span id="unb">false</span></div>
+    .token { background: var(--token); }
+    .protected { background: var(--protected); }
+    .match { background: var(--match); }
 
-          <div style="margin-top: 8px" class="muted">
-            Protected phrases
-            <span class="chip chip--protected">legend</span>
-          </div>
-          <div id="prot" class="chips-wrap"></div>
+    pre {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 0.75rem;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
 
-          <div style="margin-top: 14px" class="muted">
-            Utterance matches
-            <span class="chip chip--matched">legend</span>
-          </div>
-          <div id="matches" class="chips-wrap"></div>
+    .history {
+      font-size: 0.9rem;
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+    }
 
-          <div style="margin-top: 14px" class="muted">
-            Cleaned tokens
-            <span class="chip chip--protected">protected token</span>
-            <span class="chip chip--matched">matched token</span>
-            <span class="chip chip--token">normal token</span>
-          </div>
-          <div id="tokens" class="chips-wrap"></div>
-        </div>
-      </div>
+    .history h3 {
+      font-size: 1rem;
+      color: var(--blue);
+      margin: 0 0 0.5rem 0;
+    }
+
+    .history-item {
+      color: var(--muted);
+      padding: 0.25rem 0;
+      border-bottom: 1px dashed var(--border);
+      cursor: pointer;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-item:hover {
+      color: var(--blue);
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Search Query Builder Playground</h1>
+
+  <div class="card">
+    <input
+      id="searchBox"
+      type="text"
+      placeholder='Try: Do I need to disclose "my roth IRA" as a "personal trading account"'
+    />
+    <div class="metrics" id="metrics"></div>
+  </div>
+
+  <div class="card">
+    <div class="section open">
+      <div class="section-header">🧩 Tokens <span>▼</span></div>
+      <div class="section-content"><div class="legend" id="tokens"></div></div>
     </div>
 
-    <script type="module">
-      import {
-        SearchQueryBuilder,
-        pretokenizeFromCompact,
-      } from "../dist/index.js";
+    <div class="section open">
+      <div class="section-header">💬 Protected Phrases <span>▼</span></div>
+      <div class="section-content"><div class="legend" id="protected"></div></div>
+    </div>
 
-      // ---------- Helpers ----------
-      const $ = (id) => document.getElementById(id);
-      const qs = (sel) => Array.from(document.querySelectorAll(sel));
-      const parseSet = (s) =>
-        new Set(
-          (s || "")
-            .split(",")
-            .map((x) => x.trim().toLowerCase())
-            .filter(Boolean)
-        );
-      const parseList = (s) =>
-        (s || "")
-          .split(",")
-          .map((x) => x.trim())
-          .filter(Boolean);
-      const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+    <div class="section open">
+      <div class="section-header">🎯 Utterance Matches <span>▼</span></div>
+      <div class="section-content"><div class="legend" id="matches"></div></div>
+    </div>
 
-      const elQ = $("q"),
-        elStops = $("stops"),
-        elUtter = $("utter"),
-        elArtifact = $("artifactUrl"),
-        elProf = $("profileToggle");
-      const elInit = $("init"),
-        elProc = $("process"),
-        elStatus = $("status");
-      const elOut = $("out"),
-        elHist = $("hist"),
-        elUnb = $("unb");
-      const elProt = $("prot"),
-        elTok = $("tokens"),
-        elMatch = $("matches");
+    <div class="section open">
+      <div class="section-header">🧠 Final Query <span>▼</span></div>
+      <div class="section-content"><pre id="query"></pre></div>
+    </div>
+  </div>
 
-      const elKBuild = $("kBuild"),
-        elBBuild = $("bBuild");
-      const elKLast = $("kLast"),
-        elBLast = $("bLast");
-      const elKAvg = $("kAvg"),
-        elBAvg = $("bAvg");
+  <div class="history card">
+    <h3>🕓 Recent Searches</h3>
+    <div id="historyList"></div>
+  </div>
 
-      const metaPhrases = $("metaPhrases"),
-        metaDict = $("metaDict"),
-        metaTokens = $("metaTokens"),
-        metaMatches = $("metaMatches"),
-        metaClauses = $("metaClauses");
+  <script type="module">
+    import { SearchQueryBuilder } from '../dist/index.js';
 
-      // timeline
-      const tl = $("timeline");
-      const segTok = tl.children[0];
-      const segWrap = tl.children[1];
-      const segOther = tl.children[2];
-      const tTok = $("tTok"),
-        tWrap = $("tWrap"),
-        tOther = $("tOther");
-      const pTok = $("pTok"),
-        pWrap = $("pWrap"),
-        pOther = $("pOther");
-      const spark = $("spark");
+    const stopWords = new Set(['do', 'i', 'need', 'to', 'as', 'a', 'are', 'for', 'how', 'my']);
+    const utterances = [
+      'personal trading account',
+      'trading account',
+      'account',
+      'ira',
+      'pre clear',
+      'pre clearance approval',
+      'approval',
+      'disclosure',
+      'equity holding',
+    ];
 
-      const history = [];
-      const MAX_HISTORY = 20;
-      const lastTimes = [];
-      let builder = null;
-      let dictSize = "—";
-      let phraseCount = "—";
-      let tokMs = 0,
-        wrapMs = 0; // measured per run
+    const builder = new SearchQueryBuilder({
+      stopWords,
+      utterances,
+      includeContainedMatches: true,
+    });
 
-      function setMeter(valEl, barEl, ms, max = 500) {
-        valEl.textContent = ms != null && isFinite(ms) ? ms.toFixed(2) : "—";
-        const p = Math.max(0, Math.min(100, ((ms || 0) / max) * 100));
-        barEl.style.width = `${p}%`;
+    const input = document.getElementById('searchBox');
+    const metricsDiv = document.getElementById('metrics');
+    const tokensDiv = document.getElementById('tokens');
+    const protectedDiv = document.getElementById('protected');
+    const matchesDiv = document.getElementById('matches');
+    const queryPre = document.getElementById('query');
+    const historyList = document.getElementById('historyList');
+
+    let history = [];
+
+    const renderArray = (el, arr, type = '') => {
+      const colorClass = type === 'protected' ? 'protected' : type === 'match' ? 'match' : 'token';
+      el.innerHTML = arr.length
+        ? arr.map((t) => `<span class="${colorClass}">${t}</span>`).join('')
+        : '<i>None</i>';
+    };
+
+    const addToHistory = (text) => {
+      if (!text.trim()) return;
+      history.unshift(text.trim());
+      history = history.slice(0, 5);
+      historyList.innerHTML = history
+        .map((item) => `<div class="history-item">${item}</div>`)
+        .join('');
+    };
+
+    historyList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('history-item')) {
+        input.value = e.target.textContent;
+        input.dispatchEvent(new Event('input'));
       }
-      function setMeta({ tokens = 0, matches = 0, clauses = 0 } = {}) {
-        metaDict.textContent = `dict: ${dictSize}`;
-        metaPhrases.textContent = `phrases: ${phraseCount}`;
-        metaTokens.textContent = `tokens: ${tokens}`;
-        metaMatches.textContent = `matches: ${matches}`;
-        metaClauses.textContent = `clauses: ${clauses}`;
-      }
-      function renderSpark() {
-        spark.innerHTML = "";
-        const max = Math.max(1, ...lastTimes);
-        for (const ms of lastTimes.slice().reverse()) {
-          const h = clamp((ms / max) * 30, 2, 30);
-          const d = document.createElement("div");
-          d.style.height = `${h}px`;
-          spark.appendChild(d);
-        }
-      }
-      function renderTimeline(total) {
-        const other = Math.max(0, total - tokMs - wrapMs);
-        const sum = Math.max(1e-6, tokMs + wrapMs + other);
-        const pt = (tokMs / sum) * 100,
-          pw = (wrapMs / sum) * 100,
-          po = (other / sum) * 100;
-        segTok.style.width = `${pt}%`;
-        segWrap.style.width = `${pw}%`;
-        segOther.style.width = `${po}%`;
-        tTok.textContent = tokMs.toFixed(2);
-        tWrap.textContent = wrapMs.toFixed(2);
-        tOther.textContent = other.toFixed(2);
-        pTok.textContent = pt.toFixed(0);
-        pWrap.textContent = pw.toFixed(0);
-        pOther.textContent = po.toFixed(0);
-      }
+    });
 
-      // Default normalize+tokenize from the lib (copied to instrument)
-      const TOKEN_RE = /[a-z0-9]+(?:[-'][a-z0-9]+)*/gi;
-      const defaultNormalize = (s) => s.normalize("NFKC").toLowerCase().trim();
-      const defaultTokenize = (s) => {
-        const out = [];
-        const re = new RegExp(TOKEN_RE.source, TOKEN_RE.flags);
-        const n = defaultNormalize(s);
-        let m;
-        while ((m = re.exec(n))) out.push(m[0]);
-        return out;
-      };
-
-      function makeInstrumentedHooks() {
-        tokMs = 0;
-        wrapMs = 0;
-        const tokenize = (s) => {
-          if (!elProf.checked) return defaultTokenize(s);
-          const t0 = performance.now();
-          const r = defaultTokenize(s);
-          tokMs += performance.now() - t0;
-          return r;
-        };
-        const wrap = (q) => {
-          if (!elProf.checked) return `/${q}/`;
-          const t0 = performance.now();
-          const r = `/${q}/`;
-          wrapMs += performance.now() - t0;
-          return r;
-        };
-        return { tokenize, wrap };
-      }
-
-      async function initializeBuilder() {
-        elStatus.textContent = "Initializing…";
-        builder = null;
-        dictSize = "—";
-        phraseCount = "—";
-        setMeter(elKBuild, elBBuild, NaN);
-
-        const src = qs('input[name="src"]:checked')[0]?.value || "csv";
-        const mode = qs('input[name="mode"]:checked')[0]?.value || "strings";
-        const stopWords = parseSet(elStops.value);
-        const { tokenize, wrap } = makeInstrumentedHooks();
-
-        let utterances = [];
-        let pretokenized = null;
-
-        if (src === "compact") {
-          const url =
-            elArtifact.value?.trim() || "../demo-utterances.compact.json";
-          const t0 = performance.now();
-          const res = await fetch(url, { cache: "no-cache" });
-          const artifact = await res.json();
-          phraseCount = artifact.phrases?.length ?? "—";
-          dictSize = artifact.dict?.length ?? "—";
-          pretokenized = pretokenizeFromCompact(artifact);
-          if (mode === "strings")
-            utterances = pretokenized.map((arr) => arr.join(" "));
-          const fetchMs = performance.now() - t0;
-
-          const t1 = performance.now();
-          builder = new SearchQueryBuilder({
-            stopWords,
-            ...(mode === "pretokenized"
-              ? { pretokenizedUtterances: pretokenized }
-              : { utterances }),
-            tokenize,
-            wrap,
-          });
-          const buildMs = performance.now() - t1;
-
-          setMeter(elKBuild, elBBuild, buildMs);
-          elStatus.textContent = `Ready (fetch ${fetchMs.toFixed(1)}ms, build ${buildMs.toFixed(1)}ms)`;
-        } else {
-          utterances = parseList(elUtter.value);
-          phraseCount = utterances.length;
-
-          const t1 = performance.now();
-          builder = new SearchQueryBuilder({
-            stopWords,
-            utterances,
-            tokenize,
-            wrap,
-          });
-          const buildMs = performance.now() - t1;
-          setMeter(elKBuild, elBBuild, buildMs);
-          elStatus.textContent = `Ready (build ${buildMs.toFixed(1)}ms)`;
-        }
-
-        // reset perf
-        setMeter(elKLast, elBLast, NaN);
-        setMeter(elKAvg, elBAvg, NaN);
-        renderTimeline(0);
-        renderSpark();
-        setMeta({});
-      }
-
-      function renderProtectedAndMatches(res) {
-        elProt.innerHTML = res.protectedPhrases.length
-          ? res.protectedPhrases
-              .map(
-                (x) =>
-                  `<span class="chip chip--protected" title="Protected (exact phrase)">${x}</span>`
-              )
-              .join("")
-          : '<span class="muted">—</span>';
-
-        if (!res.utteranceMatches.length) {
-          elMatch.innerHTML = '<span class="muted">—</span>';
-        } else {
-          elMatch.innerHTML = res.utteranceMatches
-            .map((p) => {
-              const toks = p.split(/\s+/);
-              const inner = toks
-                .map(
-                  (t) =>
-                    `<span class="chip chip--matched" title="Matched utterance token">${t}</span>`
-                )
-                .join("");
-              return `<span class="chip" style="background:transparent;border:1px dashed #2b354c">${inner}</span>`;
-            })
-            .join("");
-        }
-      }
-
-      function renderCleanedTokens(res) {
-        const matchTokens = new Set(
-          res.utteranceMatches.flatMap((u) => u.toLowerCase().split(/\s+/))
-        );
-        const protectedTokens = new Set(
-          res.protectedPhrases.flatMap((p) => p.toLowerCase().split(/\s+/))
-        );
-
-        elTok.innerHTML = res.cleanedTokens.length
-          ? res.cleanedTokens
-              .map((tok) => {
-                const t = tok.toLowerCase();
-                const isProt = protectedTokens.has(t);
-                const isMatch = matchTokens.has(t);
-                const cls = isProt
-                  ? "chip--protected"
-                  : isMatch
-                    ? "chip--matched"
-                    : "chip--token";
-                const title = isProt
-                  ? "Protected phrase token"
-                  : isMatch
-                    ? "Matched utterance token"
-                    : "Normal token";
-                return `<span class="chip ${cls}" title="${title}">${tok}</span>`;
-              })
-              .join("")
-          : '<span class="muted">—</span>';
-      }
-
-      function processInput() {
-        if (!builder) {
-          elStatus.textContent = "Initialize the builder first.";
-          return;
-        }
-        const input = elQ.value.trim();
-        if (!input) return;
-
-        // reset phase timers
-        tokMs = 0;
-        wrapMs = 0;
-
-        const t0 = performance.now();
-        const res = builder.prepare(input);
-        const total = performance.now() - t0;
-
-        // Output
-        elOut.textContent = res.queryString || "—";
-        elUnb.textContent = String(!res.hadUnbalancedQuotes);
-        renderProtectedAndMatches(res);
-        renderCleanedTokens(res);
-
-        // History
-        if (res.queryString) {
-          history.unshift(res.queryString);
-          if (history.length > MAX_HISTORY) history.pop();
-          elHist.innerHTML = history
-            .map((q) => `<li><pre>${q}</pre></li>`)
-            .join("");
-        }
-
-        // Perf
-        lastTimes.unshift(total);
-        if (lastTimes.length > 20) lastTimes.pop();
-        const avg = lastTimes.reduce((a, b) => a + b, 0) / lastTimes.length;
-        setMeter(elKLast, elBLast, total);
-        setMeter(elKAvg, elBAvg, avg);
-        renderTimeline(total);
-        renderSpark();
-        setMeta({
-          tokens: res.cleanedTokens.length,
-          matches: res.utteranceMatches.length,
-          clauses: res.queryString ? res.queryString.split(" OR ").length : 0,
-        });
-      }
-
-      // Wire up
-      $("init").addEventListener("click", initializeBuilder);
-      $("process").addEventListener("click", processInput);
-      $("q").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") processInput();
+    document.querySelectorAll('.section-header').forEach((header) => {
+      header.addEventListener('click', () => {
+        const section = header.parentElement;
+        section.classList.toggle('open');
+        const arrow = header.querySelector('span');
+        arrow.textContent = section.classList.contains('open') ? '▼' : '▲';
       });
+    });
 
-      // Seed input
-      elQ.value =
-        'how do i "pre clear trade" during the quarterly blackout period when there is a market-on-close order pending and i have already submitted a pre approval request for the annual report but system still shows "approval form" error even though i completed the mfa step and password reset and tried from both sso and vpn; also what happens if i re-submit again after 2pm cutoff or if compliance marks it as "late submission" and how is this captured in the surveillance alert dashboard or the risk limit breach log?';
-    </script>
-  </body>
+    input.addEventListener('input', () => {
+      const text = input.value.trim();
+      if (!text) {
+        tokensDiv.innerHTML = protectedDiv.innerHTML = matchesDiv.innerHTML = queryPre.textContent = '';
+        metricsDiv.textContent = '';
+        return;
+      }
+
+      const start = performance.now();
+      const result = builder.prepare(text);
+      const end = performance.now();
+
+      renderArray(tokensDiv, result.cleanedTokens);
+      renderArray(protectedDiv, result.protectedPhrases, 'protected');
+      renderArray(matchesDiv, result.utteranceMatches, 'match');
+      queryPre.textContent = result.queryString;
+
+      const duration = (end - start).toFixed(2);
+      metricsDiv.textContent = `⏱ ${duration} ms | 🧠 Tokens: ${result.cleanedTokens.length} | 🎯 Matches: ${result.utteranceMatches.length}`;
+
+      addToHistory(text);
+    });
+  </script>
+</body>
 </html>

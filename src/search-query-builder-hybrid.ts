@@ -1,17 +1,20 @@
 /**
- * SearchQueryBuilder
- * --------------------------------------------------
- * A reusable utility to transform free-text user input
- * into a backend-ready search query string.
+ * SearchQueryBuilder (Hybrid - Lodash + Fuse.js)
+ * ----------------------------------------------
+ * A production-ready, future-proof text normalization and query builder utility.
  *
- * Features:
- *  - Removes stop words
- *  - Handles quoted phrases correctly
- *  - Matches known utterances (predefined search tokens)
- *  - Generates a Graph/SharePoint-safe OR query string
- *  - Configurable forward/backslash wrapping
- *  - Future-proof for large utterance collections
+ * Enhancements:
+ *  - Lodash simplifies array/string ops (uniq, flatMap, words, etc.)
+ *  - Fuse.js provides fuzzy utterance matching (handles typos & large collections)
+ *  - Works in Node, SPFx, and browser demo (via CDN)
  */
+
+// import _ from "lodash";
+// import Fuse from "fuse.js";
+
+declare const _: any;
+declare const Fuse: any;
+type FuseInstance = any;
 
 export interface PreparedQuery {
   originalInput: string;
@@ -30,21 +33,22 @@ export interface SearchQueryBuilderOptions {
   wrap?: (q: string) => string;
   includeContainedMatches?: boolean;
   useBackslash?: boolean;
+  fuzzyThreshold?: number; // 0 (exact) → 1 (very fuzzy)
 }
 
-/* -------------------------------------------------
-   Helper functions
--------------------------------------------------- */
+/* --------------------------------------------------
+   Helpers
+--------------------------------------------------- */
 
-/** Normalize smart quotes and lowercase text */
+/** Normalize smart quotes and lowercase input */
 const normalize = (s: string): string =>
-  s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').toLowerCase().trim();
+  _.toLower(_.trim(s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"')));
 
-/** Split string into words, allowing hyphens & apostrophes */
+/** Split string into words */
 const tokenize = (s: string): string[] =>
-  (s.match(/[a-z0-9]+(?:[-'][a-z0-9]+)*/gi) || []).map((t) => t.toLowerCase());
+  _.words(normalize(s), /[a-z0-9]+(?:[-'][a-z0-9]+)*/g);
 
-/** Dynamically create wrapper for exact match with safe escaping */
+/** Quote wrapper for Graph or SharePoint-safe queries */
 const createQuoteExact = (useBackslash = false) => {
   const start = useBackslash ? `\\"` : `/"`;
   const end = useBackslash ? `"\\"` : `" /`;
@@ -55,11 +59,7 @@ const createQuoteExact = (useBackslash = false) => {
       .replace(/'/g, "\\'")}${end}`;
 };
 
-/** Check for balanced quotes */
-const hasBalancedQuotes = (s: string): boolean =>
-  (s.match(/["“”]/g) || []).length % 2 === 0;
-
-/** Extract quoted phrases ("...") and remainder */
+/** Extract quoted phrases and remainder text */
 const extractQuoted = (s: string): { quoted: string[]; remainder: string } => {
   const matches = Array.from(s.matchAll(/["“]([^"”]+)["”]/g), (m) =>
     normalize(m[1])
@@ -68,27 +68,21 @@ const extractQuoted = (s: string): { quoted: string[]; remainder: string } => {
   return { quoted: matches, remainder };
 };
 
-/** Generate all contiguous subphrases shorter than original */
-const getSubphrases = (arr: string[]): string[] => {
-  const results: string[] = [];
-  for (let len = 1; len < arr.length; len++) {
-    for (let i = 0; i <= arr.length - len; i++) {
-      results.push(arr.slice(i, i + len).join(" "));
-    }
-  }
-  return results;
-};
+/** Subphrase generator (shorter n-grams) */
+const getSubphrases = (arr: string[]): string[] =>
+  _.flatMap(_.range(1, arr.length), (len: number) =>
+    _.range(0, arr.length - len + 1).map((i: number) =>
+      arr.slice(i, i + len).join(" ")
+    )
+  );
 
-/** Remove duplicates */
-const uniq = <T>(arr: T[]): T[] => [...new Set(arr)];
+/** Balanced quote check */
+const hasBalancedQuotes = (s: string) =>
+  (s.match(/["“”]/g) || []).length % 2 === 0;
 
-/** Text contains phrase */
-const includesPhrase = (text: string, phrase: string): boolean =>
-  text.includes(phrase);
-
-/* -------------------------------------------------
-   Main class
--------------------------------------------------- */
+/* --------------------------------------------------
+   Main Builder
+--------------------------------------------------- */
 
 export class SearchQueryBuilder {
   private stopWords: Set<string>;
@@ -97,10 +91,11 @@ export class SearchQueryBuilder {
   private includeContainedMatches: boolean;
   private useBackslash: boolean;
   private useUtterances: boolean; // 👈 NEW field
+  private fuse?: FuseInstance; // or: private fuse?: FuseInstance;
+  private fuzzyThreshold: number; // 👈 store once
 
   constructor(opts: SearchQueryBuilderOptions = {}) {
     this.stopWords = opts.stopWords ?? new Set();
-
     const utterances = (opts.utterances ?? []).map(normalize);
     this.utteranceIndex = utterances.map((u) => ({
       text: u,
@@ -111,6 +106,15 @@ export class SearchQueryBuilder {
     this.includeContainedMatches = !!opts.includeContainedMatches;
     this.useBackslash = !!opts.useBackslash;
     this.useUtterances = opts.useUtterances !== false; // 👈 default true
+    this.fuzzyThreshold = opts.fuzzyThreshold ?? 0.3;
+
+    // Build Fuse index only if utterances are enabled and present
+    if (this.useUtterances && utterances.length) {
+      this.fuse = new Fuse(utterances, {
+        threshold: this.fuzzyThreshold,
+        includeScore: true,
+      });
+    }
   }
 
   prepare(input: string): PreparedQuery {
@@ -118,7 +122,7 @@ export class SearchQueryBuilder {
     const originalInput = input
       ? input.replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
       : "";
-    if (!originalInput.trim()) {
+    if (!_.trim(originalInput)) {
       return {
         originalInput,
         protectedPhrases: [],
@@ -136,43 +140,43 @@ export class SearchQueryBuilder {
     const cleanedTokens = allTokens.filter((t) => !this.stopWords.has(t));
     const cleanedText = cleanedTokens.join(" ");
 
-    // 🔎 Utterances only if enabled
+    // 🔎 Fuzzy utterances only if enabled
     let matches: string[] = [];
-    if (this.useUtterances && this.utteranceIndex.length) {
-      matches = this.utteranceIndex
-        .filter((u) => cleanedText.includes(u.text))
-        .map((u) => u.text);
-      if (this.includeContainedMatches) {
-        const subs = matches.flatMap((m) =>
-          getSubphrases(m.split(" ")).filter(
-            (sub) =>
-              this.utteranceIndex.some((u) => u.text === sub) &&
-              cleanedText.includes(sub)
+    if (this.useUtterances && this.fuse) {
+      const fuseResults = this.fuse.search(cleanedText);
+      // Optional: drop weak matches (e.g., > 0.5 score = <50% confidence)
+      const strong = fuseResults.filter((r: any) => r.score! <= 0.5);
+      matches = strong.map((r: any) => r.item);
+
+      if (this.includeContainedMatches && matches.length) {
+        const subs = _.flatMap(matches, (m: any) =>
+          getSubphrases(m.split(" ")).filter((sub) =>
+            this.utteranceIndex.some((u) => u.text === sub)
           )
         );
-        matches = [...new Set([...matches, ...subs])];
+        matches = _.uniq([...matches, ...subs]);
       }
     }
 
     const fallbackClauses =
-      matches.length === 0 && cleanedTokens.length
+      _.isEmpty(matches) && cleanedTokens.length
         ? cleanedTokens.map(quoteExact)
         : [];
 
     // Dedup clauses + skip duplicate cleanedText if identical to original
     const maybeCleaned =
-      cleanedText.trim() !== normalize(originalInput.trim())
+      normalize(cleanedText.trim()) !== normalize(originalInput.trim())
         ? [quoteExact(cleanedText)]
         : [];
-    const clauses = Array.from(
-      new Set([
+    const clauses = _.uniq(
+      _.compact([
         quoteExact(originalInput.trim()),
         ...maybeCleaned,
         ...quoted.map(quoteExact),
         ...matches.map(quoteExact),
         ...fallbackClauses,
       ])
-    ).filter(Boolean);
+    );
 
     return {
       originalInput,
