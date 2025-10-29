@@ -1,4 +1,12 @@
 import { SearchQueryBuilder } from "../src/index";
+import utterancesCompactJson from '../dist/artifacts/utterances.compact.json' assert { type: "json" };
+
+// helper function
+function expandCompactArtifact(artifact: { dict: string[], phrases: number[][] }) {
+  return artifact.phrases.map(indices => indices.map(i => artifact.dict[i]).join(' '));
+}
+
+const expandedUtterances = expandCompactArtifact(utterancesCompactJson);
 
 const stopWords = new Set([
   "how",
@@ -48,7 +56,8 @@ const utterances = [
 
 const builder = new SearchQueryBuilder({
   stopWords,
-  utterances, // for prod prefer pretokenized or compact artifact path
+  utterances: expandedUtterances,
+  // utterances, // for prod prefer pretokenized or compact artifact path
   wrap: (q) => `/${q}/`,
   includeContainedMatches: true,
   useBackslash: true,
@@ -63,7 +72,7 @@ const inputs = [
   // `how do i "pre clear trade today`,
   `Do I need to disclose 'my roth for how IRA' as a "personal are trading account"`,
   "Sridhar Kumaresan wants trading accounts for his personal trading account and IRA",
-  "Sridhar Kumaresan",
+  "Sridhar Kumaresan pre clearance approval equity holding",
 ];
 
 for (const s of inputs) {

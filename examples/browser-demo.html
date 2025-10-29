@@ -1,281 +1,478 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Search Query Builder Playground</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
-  <style>
-    :root {
-      --blue: #2563eb;
-      --bg: #f9fafb;
-      --card: #fff;
-      --text: #111827;
-      --border: #e5e7eb;
-      --muted: #6b7280;
-      --token: #e0f2fe;
-      --protected: #fef3c7;
-      --match: #dcfce7;
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
-    }
-
-    body {
-      margin: 0;
-      padding: 2rem;
-      background: var(--bg);
-      color: var(--text);
-      max-width: 900px;
-      margin-inline: auto;
-    }
-
-    h1 {
-      text-align: center;
-      font-weight: 600;
-      color: var(--blue);
-      margin-bottom: 1.5rem;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-
-    input[type='text'] {
-      width: 100%;
-      padding: 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-
-    .metrics {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-
-    .section {
-      margin-top: 1.2rem;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      transition: all 0.3s ease;
-    }
-
-    .section-header {
-      background: #f3f4f6;
-      padding: 0.8rem 1rem;
-      cursor: pointer;
-      font-weight: 600;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: var(--blue);
-    }
-
-    .section-content {
-      padding: 1rem;
-      display: none;
-    }
-
-    .section.open .section-content {
-      display: block;
-    }
-
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.3rem;
-      font-size: 0.85rem;
-    }
-
-    .legend span {
-      padding: 0.25rem 0.5rem;
-      border-radius: 6px;
-      font-weight: 500;
-    }
-
-    .token { background: var(--token); }
-    .protected { background: var(--protected); }
-    .match { background: var(--match); }
-
-    pre {
-      background: #f1f5f9;
-      border-radius: 8px;
-      padding: 0.75rem;
-      overflow-x: auto;
-      font-size: 0.9rem;
-      color: var(--text);
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-
-    .history {
-      font-size: 0.9rem;
-      background: var(--card);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 0.75rem 1rem;
-    }
-
-    .history h3 {
-      font-size: 1rem;
-      color: var(--blue);
-      margin: 0 0 0.5rem 0;
-    }
-
-    .history-item {
-      color: var(--muted);
-      padding: 0.25rem 0;
-      border-bottom: 1px dashed var(--border);
-      cursor: pointer;
-    }
-
-    .history-item:last-child {
-      border-bottom: none;
-    }
-
-    .history-item:hover {
-      color: var(--blue);
-    }
-  </style>
-</head>
-<body>
-  <h1>🔍 Search Query Builder Playground</h1>
-
-  <div class="card">
-    <input
-      id="searchBox"
-      type="text"
-      placeholder='Try: Do I need to disclose "my roth IRA" as a "personal trading account"'
+  <head>
+    <meta charset="UTF-8" />
+    <title>Search Query Builder Playground</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
     />
-    <div class="metrics" id="metrics"></div>
-  </div>
-
-  <div class="card">
-    <div class="section open">
-      <div class="section-header">🧩 Tokens <span>▼</span></div>
-      <div class="section-content"><div class="legend" id="tokens"></div></div>
-    </div>
-
-    <div class="section open">
-      <div class="section-header">💬 Protected Phrases <span>▼</span></div>
-      <div class="section-content"><div class="legend" id="protected"></div></div>
-    </div>
-
-    <div class="section open">
-      <div class="section-header">🎯 Utterance Matches <span>▼</span></div>
-      <div class="section-content"><div class="legend" id="matches"></div></div>
-    </div>
-
-    <div class="section open">
-      <div class="section-header">🧠 Final Query <span>▼</span></div>
-      <div class="section-content"><pre id="query"></pre></div>
-    </div>
-  </div>
-
-  <div class="history card">
-    <h3>🕓 Recent Searches</h3>
-    <div id="historyList"></div>
-  </div>
-
-  <script type="module">
-    import { SearchQueryBuilder } from '../dist/index.js';
-
-    const stopWords = new Set(['do', 'i', 'need', 'to', 'as', 'a', 'are', 'for', 'how', 'my']);
-    const utterances = [
-      'personal trading account',
-      'trading account',
-      'account',
-      'ira',
-      'pre clear',
-      'pre clearance approval',
-      'approval',
-      'disclosure',
-      'equity holding',
-    ];
-
-    const builder = new SearchQueryBuilder({
-      stopWords,
-      utterances,
-      includeContainedMatches: true,
-    });
-
-    const input = document.getElementById('searchBox');
-    const metricsDiv = document.getElementById('metrics');
-    const tokensDiv = document.getElementById('tokens');
-    const protectedDiv = document.getElementById('protected');
-    const matchesDiv = document.getElementById('matches');
-    const queryPre = document.getElementById('query');
-    const historyList = document.getElementById('historyList');
-
-    let history = [];
-
-    const renderArray = (el, arr, type = '') => {
-      const colorClass = type === 'protected' ? 'protected' : type === 'match' ? 'match' : 'token';
-      el.innerHTML = arr.length
-        ? arr.map((t) => `<span class="${colorClass}">${t}</span>`).join('')
-        : '<i>None</i>';
-    };
-
-    const addToHistory = (text) => {
-      if (!text.trim()) return;
-      history.unshift(text.trim());
-      history = history.slice(0, 5);
-      historyList.innerHTML = history
-        .map((item) => `<div class="history-item">${item}</div>`)
-        .join('');
-    };
-
-    historyList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('history-item')) {
-        input.value = e.target.textContent;
-        input.dispatchEvent(new Event('input'));
+    <style>
+      :root {
+        --blue: #2563eb;
+        --bg: #f9fafb;
+        --card: #fff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --token: #e0f2fe;
+        --protected: #fef3c7;
+        --match: #dcfce7;
       }
-    });
-
-    document.querySelectorAll('.section-header').forEach((header) => {
-      header.addEventListener('click', () => {
-        const section = header.parentElement;
-        section.classList.toggle('open');
-        const arrow = header.querySelector('span');
-        arrow.textContent = section.classList.contains('open') ? '▼' : '▲';
-      });
-    });
-
-    input.addEventListener('input', () => {
-      const text = input.value.trim();
-      if (!text) {
-        tokensDiv.innerHTML = protectedDiv.innerHTML = matchesDiv.innerHTML = queryPre.textContent = '';
-        metricsDiv.textContent = '';
-        return;
+      * {
+        box-sizing: border-box;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        text-align: center;
+        color: var(--blue);
+        font-weight: 600;
+      }
+      .sub {
+        margin: 0 auto 20px;
+        max-width: 880px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.95rem;
       }
 
-      const start = performance.now();
-      const result = builder.prepare(text);
-      const end = performance.now();
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        margin-bottom: 16px;
+        border: 1px solid var(--border);
+      }
 
-      renderArray(tokensDiv, result.cleanedTokens);
-      renderArray(protectedDiv, result.protectedPhrases, 'protected');
-      renderArray(matchesDiv, result.utteranceMatches, 'match');
-      queryPre.textContent = result.queryString;
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 220px 220px 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+      .controls .grow {
+        grid-column: 1 / span 1;
+      }
+      .controls .right {
+        justify-self: end;
+      }
+      input[type="text"],
+      select,
+      label.toggle {
+        font-size: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fff;
+      }
+      label.switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: #374151;
+      }
+      label.switch input {
+        transform: scale(1.1);
+      }
 
-      const duration = (end - start).toFixed(2);
-      metricsDiv.textContent = `⏱ ${duration} ms | 🧠 Tokens: ${result.cleanedTokens.length} | 🎯 Matches: ${result.utteranceMatches.length}`;
+      .metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+        margin-top: 10px;
+        color: #374151;
+        font-size: 0.92rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #eef2ff;
+        color: #3730a3;
+        border: 1px solid #c7d2fe;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
 
-      addToHistory(text);
-    });
-  </script>
-</body>
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .chip {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.85rem;
+        border: 1px solid var(--border);
+      }
+      .chip.token {
+        background: var(--token);
+      }
+      .chip.protected {
+        background: var(--protected);
+      }
+      .chip.match {
+        background: var(--match);
+      }
+
+      .section {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-top: 12px;
+      }
+      .section-header {
+        background: #f3f4f6;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--blue);
+      }
+      .section-content {
+        display: none;
+        padding: 12px;
+      }
+      .section.open .section-content {
+        display: block;
+      }
+
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        border-radius: 8px;
+        background: #f3f4f6;
+        border: 1px solid var(--border);
+        padding: 4px 8px;
+        font-size: 0.9rem;
+      }
+      pre {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 12px;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+      }
+
+      .history {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .history .item {
+        background: #f3f4f6;
+        border: 1px dashed var(--border);
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #374151;
+      }
+      .history .item:hover {
+        background: #e5e7eb;
+      }
+
+      /* keep output from stretching too wide */
+      .maxw {
+        max-width: 960px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔍 Search Query Builder Playground</h1>
+      <p class="sub">
+        Modern demo with legends, collapsible sections, performance, history,
+        and token-source options (Array or Compact Dictionary JSON).
+      </p>
+
+      <!-- Controls -->
+      <div class="card">
+        <div class="controls">
+          <input
+            id="searchBox"
+            class="grow"
+            type="text"
+            placeholder='Try: Do I need to disclose "my roth IRA" as a "personal trading account"'
+          />
+          <select id="utteranceMode" title="Utterance Source">
+            <option value="array">Array (Sample)</option>
+            <option value="compact">Compact Dictionary JSON</option>
+          </select>
+          <label class="switch">
+            <input id="useUtterances" type="checkbox" checked />
+            Use utterances
+          </label>
+          <label class="switch right">
+            <input id="includeSub" type="checkbox" checked />
+            Include sub-phrases
+          </label>
+        </div>
+
+        <div class="metrics">
+          <div class="badge">⏱ <span id="mTime">0.00</span> ms</div>
+          <div class="badge">🧩 Tokens: <span id="mTokens">0</span></div>
+          <div class="badge">🎯 Matches: <span id="mMatches">0</span></div>
+          <div class="badge">📦 Source: <span id="mSource">Array</span></div>
+          <div class="badge">⚙️ Utterances: <span id="mUtts">On</span></div>
+        </div>
+
+        <div class="legend">
+          <span class="chip token">Tokens</span>
+          <span class="chip protected">Protected (quoted)</span>
+          <span class="chip match">Utterance matches</span>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="card maxw">
+        <div class="section open" data-sec>
+          <div class="section-header">🧩 Tokens <span>▼</span></div>
+          <div class="section-content">
+            <div id="secTokens" class="pills"></div>
+          </div>
+        </div>
+
+        <div class="section open" data-sec>
+          <div class="section-header">💬 Protected Phrases <span>▼</span></div>
+          <div class="section-content">
+            <div id="secProtected" class="pills"></div>
+          </div>
+        </div>
+
+        <div class="section open" data-sec>
+          <div class="section-header">🎯 Utterance Matches <span>▼</span></div>
+          <div class="section-content">
+            <div id="secMatches" class="pills"></div>
+          </div>
+        </div>
+
+        <div class="section open" data-sec>
+          <div class="section-header">🧠 Final Query <span>▼</span></div>
+          <div class="section-content"><pre id="secQuery"></pre></div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card">
+        <strong>🕓 Recent Searches</strong>
+        <div id="history" class="history"></div>
+      </div>
+    </div>
+
+    <!-- Your built library (no-deps or hybrid—both work). -->
+    <script type="module">
+      import { SearchQueryBuilder } from "../dist/index.js";
+      let compact = null;
+
+      (async () => {
+        async function loadCompact() {
+          const res = await fetch("../dist/artifacts/utterances.compact.json");
+          if (!res.ok)
+            throw new Error("Failed to load compact dictionary JSON");
+          compact = await res.json();
+        }
+
+        await loadCompact();
+
+        // ===== UI handles
+        const $ = (id) => document.getElementById(id);
+        const searchBox = $("searchBox");
+        const modeSel = $("utteranceMode");
+        const tUse = $("useUtterances");
+        const tSub = $("includeSub");
+
+        const mTime = $("mTime"),
+          mTokens = $("mTokens"),
+          mMatches = $("mMatches"),
+          mSource = $("mSource"),
+          mUtts = $("mUtts");
+        const secTokens = $("secTokens"),
+          secProtected = $("secProtected"),
+          secMatches = $("secMatches"),
+          secQuery = $("secQuery");
+        const historyEl = $("history");
+
+        // ===== Collapsible sections
+        document.querySelectorAll("[data-sec] .section-header").forEach((h) => {
+          h.addEventListener("click", () => {
+            const sec = h.parentElement;
+            sec.classList.toggle("open");
+            const span = h.querySelector("span");
+            span.textContent = sec.classList.contains("open") ? "▼" : "▲";
+          });
+        });
+
+        // ===== Demo data
+        const stopWords = new Set([
+          "do",
+          "i",
+          "a",
+          "the",
+          "of",
+          "for",
+          "and",
+          "is",
+          "to",
+          "on",
+          "as",
+          "are",
+          "how",
+          "need",
+          "my",
+          "it",
+          "if",
+          "was",
+          "not",
+          "during",
+          "can",
+        ]);
+        const sampleArray = [
+          "pre clearance approval",
+          "personal trading account",
+          "trading account",
+          "ira",
+          "equity holding",
+          "report",
+        ];
+
+        // Expand compact dict -> string utterances
+        function expandCompactArtifact(artifact) {
+          return artifact.phrases.map((idxList) =>
+            idxList.map((i) => artifact.dict[i]).join(" ")
+          );
+        }
+
+        // ===== Builder lifecycle
+        let builder = null;
+        function buildBuilder() {
+          const source = modeSel.value;
+          const utterances =
+            source === "compact" ? expandCompactArtifact(compact) : sampleArray;
+
+          builder = new SearchQueryBuilder({
+            stopWords,
+            utterances,
+            useUtterances: tUse.checked,
+            includeContainedMatches: tSub.checked,
+          });
+
+          mSource.textContent = source === "compact" ? "Compact JSON" : "Array";
+          mUtts.textContent = tUse.checked ? "On" : "Off";
+        }
+
+        // ===== Render helpers
+        const toPills = (arr, cls = "pill") =>
+          arr.length
+            ? arr.map((x) => `<span class="${cls}">${x}</span>`).join("")
+            : "<em>None</em>";
+
+        const render = (res, ms) => {
+          secTokens.innerHTML = toPills(
+            res.cleanedTokens.map((x) => x),
+            "pill chip token"
+          );
+          secProtected.innerHTML = toPills(
+            res.protectedPhrases,
+            "pill chip protected"
+          );
+          secMatches.innerHTML = toPills(
+            res.utteranceMatches,
+            "pill chip match"
+          );
+          secQuery.textContent = res.queryString;
+
+          mTime.textContent = ms.toFixed(2);
+          mTokens.textContent = String(res.cleanedTokens.length);
+          mMatches.textContent = String(res.utteranceMatches.length);
+        };
+
+        // ===== History
+        const history = [];
+        function pushHistory(q) {
+          if (!q) return;
+          if (history[0] === q) return;
+          history.unshift(q);
+          if (history.length > 6) history.pop();
+          historyEl.innerHTML = history
+            .map((h) => `<span class="item">${h}</span>`)
+            .join("");
+        }
+        historyEl.addEventListener("click", (e) => {
+          if (e.target.classList.contains("item")) {
+            searchBox.value = e.target.textContent;
+            trigger();
+          }
+        });
+
+        // ===== Trigger search
+        function trigger() {
+          const text = searchBox.value.trim();
+          if (!text) {
+            secTokens.innerHTML =
+              secProtected.innerHTML =
+              secMatches.innerHTML =
+                "";
+            secQuery.textContent = "";
+            return;
+          }
+          const t0 = performance.now();
+          const res = builder.prepare(text);
+          const t1 = performance.now();
+          render(res, t1 - t0);
+          pushHistory(text);
+        }
+
+        // ===== Wire events
+        searchBox.addEventListener("input", trigger);
+        modeSel.addEventListener("change", () => {
+          buildBuilder();
+          trigger();
+        });
+        tUse.addEventListener("change", () => {
+          buildBuilder();
+          trigger();
+        });
+        tSub.addEventListener("change", () => {
+          buildBuilder();
+          trigger();
+        });
+
+        // Init
+        buildBuilder();
+      })();
+    </script>
+  </body>
 </html>
